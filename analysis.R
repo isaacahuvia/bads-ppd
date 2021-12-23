@@ -8,7 +8,8 @@ library(here)
 dat1 <- readRDS(here("data", "T2T Data for Pinder et al.rds"))
 
 ####  Prepare Data  ####
-# Select relevant variables
+## Select relevant variables
+names(dat1)
 dat1 <- subset(dat1, select = c("pb_childethnicity", "pb_childsex",
                                 "pb_childgender","pb_childage", "pb_income",
                                 "yb_permanence","yb_cause_brain", "yb_cause_env",
@@ -18,44 +19,8 @@ dat1 <- subset(dat1, select = c("pb_childethnicity", "pb_childsex",
                                 "yb_bads_13", "yb_bads_14", "yb_bads_15",
                                 "yb_bads_23", "yb_bads_24", "yb_bads_25"
 ))
-table(dat1$pb_childethnicity)
-table(dat1$pb_childsex)
-table(dat1$pb_childgender)
-table(dat1$pb_childgender)
-table(dat1$pb_childgender)
-table(dat1$pb_childage)
-table(dat1$pb_income)
-sum(table(dat1$yb_permanence))
 
-sum(is.na(dat1$yb_permanence))
-
-sum(table(dat1$pb_childgender))
-
-sapply(dat1, function(x) sum(is.na(x)))
-
-dat2 <- select(dat1, c("yb_permanence", "yb_cause_brain", "yb_cause_env",
-                       "yb_bads_4", "yb_bads_7"))
-dat2
-
-# Create composite BADS subscale variables
-dat1$bads_act <- dat1$yb_bads_3 + dat1$yb_bads_4 + dat1$yb_bads_5 +
-                dat1$yb_bads_7 + dat1$yb_bads_11 + dat1$yb_bads_12 + 
-                dat1$yb_bads_23
-
-dat1$bads_avr <- dat1$yb_bads_8 + dat1$yb_bads_9 + dat1$yb_bads_10 +
-                dat1$yb_bads_13 + dat1$yb_bads_14 + dat1$yb_bads_15 + 
-                dat1$yb_bads_24 + dat1$yb_bads_25
-
-# Remove individual BADS item variables
-dat1 <- subset(dat1, select = c("pb_childethnicity", "pb_childsex",
-                                 "pb_childgender", "pb_childage",
-                                 "pb_income", "yb_permanence",
-                                 "yb_cause_brain", "yb_cause_env",
-                                 "bads_act", "bads_avr"
-))
-
-  
-# Rename variables
+## Rename variables
 dat1 <- dat1 %>% rename(race_eth = pb_childethnicity,
                         sex = pb_childsex,
                         gender = pb_childgender,
@@ -65,7 +30,51 @@ dat1 <- dat1 %>% rename(race_eth = pb_childethnicity,
                         ppd_brain = yb_cause_brain,
                         ppd_env = yb_cause_env)
 
-# Recode race/ethnicity variable
+## Inspect NAs
+sapply(dat1, function(x) sum(is.na(x)))
+# No missing demographic info
+# Look at NAs in analysis variables
+names(dat1)
+(dat1[c(6:10)])
+# 2 subjects NA for all 3 ppd vars - drop now (analyses impossible)
+dat1 <- subset(dat1, dat1$ppd_perm != "NA")
+dat1$ppd_perm
+# 4 others missing some vars, exclude from analyses pairwise
+
+## Create composite BADS subscale variables
+dat1$bads_act <- dat1$yb_bads_3 + dat1$yb_bads_4 + dat1$yb_bads_5 +
+                dat1$yb_bads_7 + dat1$yb_bads_11 + dat1$yb_bads_12 + 
+                dat1$yb_bads_23
+
+dat1$bads_avr <- dat1$yb_bads_8 + dat1$yb_bads_9 + dat1$yb_bads_10 +
+                dat1$yb_bads_13 + dat1$yb_bads_14 + dat1$yb_bads_15 + 
+                dat1$yb_bads_24 + dat1$yb_bads_25
+# Cases with a missing item value get a missing subscale value
+# Remove individual BADS item variables
+dat1 <- subset(dat1, select = c("race_eth", "sex", "gender", "age", "income",
+                                "ppd_perm", "ppd_brain", "ppd_env",
+                                "bads_act", "bads_avr"
+))
+
+## Get demographic details
+# Write function for tables
+freq_tab_with_perc <- function(x) {
+  tab <- as.data.frame(table(x)) %>%
+    mutate(Perc = (Freq/sum(Freq))*100) %>%
+    mutate_if(is.numeric, round, 2)
+  return(tab)
+}
+# Generate tables
+(race_tab <- freq_tab_with_perc(dat1$race_eth))
+(sex_tab <- freq_tab_with_perc(dat1$sex))
+(gender_tab <- freq_tab_with_perc(dat1$gender))
+(income_tab <- freq_tab_with_perc(dat1$income))
+(age_tab <- freq_tab_with_perc(dat1$age))
+mean(dat1$age)
+sd(dat1$age)
+
+## Recode variables
+# Recode race/ethnicity
 dat1 = dat1 %>% mutate(race_eth = recode(race_eth,
                 "American Indian and/or Alaska Native" = "AI/AN",
                "Black or African American" = "Black",
@@ -74,7 +83,6 @@ dat1 = dat1 %>% mutate(race_eth = recode(race_eth,
                "Asian (including Asian Desi and Pacific Islander)" = "AA/PI",
                "Hispanic or Latino/a" = "Hisp/Lat",
                "Other, please specify" = "Other/Mult"))
-
 # Recode gender variable (cross-ref w/sex)
 table(dat1$gender)
 table(dat1$sex)
@@ -82,14 +90,18 @@ dat1 = dat1 %>% mutate(gender = case_when(
   sex == "female" & gender == "Woman" ~ "Cis Woman",
   sex == "male" & gender == "Man" ~ "Cis Man",
   TRUE ~ "Other"))
-table(dat1$gender)
-
+freq_tab_with_perc(dat1$gender)
 # Remove original sex variable & reorder columns
 dat1 <- subset(dat1, select = c("ppd_perm", "ppd_brain", "ppd_env",
                                 "bads_act", "bads_avr",
                                 "race_eth", "gender", "age", "income"))
+#Check data
+options(max.print = 10000)
+dat1
 
-# Functions for median splits
+
+## Median split age and income
+# Function to determine whether median should be included in upper or lower
 median_in_lower <- function(x) {
   x <- as.integer(as.character(x))
   var_median <- median(x)
@@ -101,7 +113,7 @@ median_in_lower <- function(x) {
   med_in_upper = var_freq[var_freq$x < var_median,]
   return(abs(even_split - sum(med_in_lower$Freq)) < abs(even_split - sum(med_in_upper$Freq)))
 }
-
+# Function to split variable at median per previous
 median_split_variable <- function(x, median_in_lower) {
   x <- as.integer(as.character(x))
   var_median <- median(x)
@@ -110,112 +122,44 @@ median_split_variable <- function(x, median_in_lower) {
          new_var <- ifelse(x < var_median, "Below Median", "Above Median"))
   return(new_var)
 }
-
+names(dat1)
 # Split age at median
 (med_in_lower <- median_in_lower(dat1$age))
 dat1$age_split <- median_split_variable(dat1$age, med_in_lower)
-
 dat1 <- subset(dat1, select = -c(age))
-dat1
-
-# Median split income
+# Clean up income variable
 table(dat1$income)
+dat1$income <- sapply(str_split(dat1$income,"-",),'[',1) %>%
+  str_replace_all("[^[:alnum:]]","")
+# Split income at median
+table(dat1$income)
+(med_in_lower <- median_in_lower(dat1$income))
+dat1$income_split <- median_split_variable(dat1$income, med_in_lower)
+dat1 <- subset(dat1, select = -c(income))
 
-incl_age_med = age_freq[age_freq$Var1 <= age_median,]
-excl_age_med = age_freq[age_freq$Var1 < age_median,]
-bool_incl_lower <- abs(eq_split - sum(incl_age_med$Freq)) < abs(eq_split - sum(excl_age_med$Freq))
-
-
-
-
-
-
-
-
-
-dat1$age <- as.integer(dat1$age)
-age_median <- median(dat1$age)
-age_freq <- as.data.frame(table(dat1$age))
-age_freq$Var1 <- as.integer(as.character((age_freq$Var1)))
-eq_split <- sum(age_freq$Freq)/2
-
-# Assess including median values in lower or upper split
-incl_age_med = age_freq[age_freq$Var1 <= age_median,]
-excl_age_med = age_freq[age_freq$Var1 < age_median,]
-bool_incl_lower <- abs(eq_split - sum(incl_age_med$Freq)) < abs(eq_split - sum(excl_age_med$Freq))
-# Include median in lower half
-
-
-
-
-
-
-
-dat1$age_split[dat1$age < 15] <- "<=14"
-dat1$age_split[dat1$age > 14] <- ">14"
-table(dat1$age_split)
-print(dat1, max = 100)
-
-
-dat1 = dat1 %>% mutate(income_split = recode(income,
-                                             "$0-$19,000" = "Lower",
-                                             "$20,000-$39,000" = "Lower",
-                                             "$40,000-$59,000" = "Lower",
-                                             "$60,000-$79,000" = "Lower",
-                                             "$80,000 - $99,000" = "Higher",
-                                             "$100,000 - $119,000" = "Higher",
-                                             "$120,000-$140,000" = "Higher",
-                                             "$140,000+" = "Higher"))
-
-
-
-
-
-dat1$ppd_perm <- as.numeric(dat1$ppd_perm)
-dat1$ppd_brain <- as.numeric(dat1$ppd_brain)
-dat1$ppd_env <- as.numeric(dat1$ppd_env)
-dat1$bads_act <- as.numeric(dat1$bads_act)
-dat1$bads_avr <- as.numeric(dat1$bads_avr)
-
+## Look at numeric variables
+# Histograms
 hist(dat1$bads_act)
 hist(dat1$bads_avr)
 hist(dat1$ppd_perm)
 hist(dat1$ppd_brain)
 hist(dat1$ppd_env)
+mean(dat1$bads_avr)
+# Get means and sds
+(means <- sapply(dat1[1:5], mean, na.rm = TRUE))
+(sds <- sapply(dat1[1:5], sd, na.rm = TRUE))
+(means_and_sds <- round(data.frame(means, sds), digits = 2))
 
-
-
-# Create median splits
-
-
-dat1 <- subset(dat1, select = c("ppd_perm", "ppd_brain", "ppd_env",
-                                "bads_act", "bads_avr",
-                                "race_eth", "gender", "age_split", "income_split"
-))
-
-
-head(dat1)  
-
-
-
-
-# Determine which demographic vars have adequately sized groups
+## Determine which demographic vars have 2 adequately sized subgroups
 table(dat1$race_eth)
-#nope - DROP FROM ANALYSES
+# No - drop from analyses
 table(dat1$gender)
-#man & woman only
+# Compare cis man & cis woman only
 table(dat1$age)
-#yep
+# Yes
 table(dat1$income)
-#yep
-
-# Secondary analyses will compare man/woman, younger/older, & higher/lower income
-
-
-
-
-
-
+# Yes
+# Secondary analyses will compare cis man/woman, younger/older, & higher/lower income
 
 
 ####  Analysis  ####
