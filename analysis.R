@@ -1,8 +1,8 @@
 #### Setup ####
 # Load packages
 library(tidyverse)
-library(assertr)
 library(here)
+library(RVAideMemoire)
 
 # Load data
 dat1 <- readRDS(here("data", "T2T Data for Pinder et al.rds"))
@@ -31,7 +31,7 @@ dat1 <- dat1 %>% rename(race_eth = pb_childethnicity,
                         ppd_env = yb_cause_env)
 
 ## Inspect NAs
-sapply(dat1, function(x) sum(is.na(x)))
+missings <- sapply(dat1, function(x) sum(is.na(x)))
 # No missing demographic info
 # Look at NAs in analysis variables
 names(dat1)
@@ -99,7 +99,6 @@ dat1 <- subset(dat1, select = c("ppd_perm", "ppd_brain", "ppd_env",
 options(max.print = 10000)
 dat1
 
-
 ## Median split age and income
 # Function to determine whether median should be included in upper or lower
 median_in_lower <- function(x) {
@@ -138,13 +137,6 @@ dat1$income_split <- median_split_variable(dat1$income, med_in_lower)
 dat1 <- subset(dat1, select = -c(income))
 
 ## Look at numeric variables
-# Histograms
-hist(dat1$bads_act)
-hist(dat1$bads_avr)
-hist(dat1$ppd_perm)
-hist(dat1$ppd_brain)
-hist(dat1$ppd_env)
-mean(dat1$bads_avr)
 # Get means and sds
 (means <- sapply(dat1[1:5], mean, na.rm = TRUE))
 (sds <- sapply(dat1[1:5], sd, na.rm = TRUE))
@@ -161,137 +153,202 @@ table(dat1$income)
 # Yes
 # Secondary analyses will compare cis man/woman, younger/older, & higher/lower income
 
+####  Main Analysis  ####
+# ppd_perm & bads_act
+cor.test(dat1$ppd_perm, dat1$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1$ppd_perm, dat1$bads_act)
+# ppd_perm & bads_avr
+cor.test(dat1$ppd_perm, dat1$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1$ppd_perm, dat1$bads_avr)
 
-####  Analysis  ####
-# Correlations
-cor.test(dat1$ppd_perm, dat1$bads_act, method = "spearman")
-#sig
-cor.test(dat1$ppd_perm, dat1$bads_avr, method = "spearman")
-#sig
+# ppd_brain & bads_act
+cor.test(dat1$ppd_brain, dat1$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1$ppd_brain, dat1$bads_act)
+# ppd_brain & bads_avr
+cor.test(dat1$ppd_brain, dat1$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1$ppd_brain, dat1$bads_avr)
+# ppd_env & bads_act
+cor.test(dat1$ppd_env, dat1$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1$ppd_env, dat1$bads_act)
+# ppd_env & bads_avr
+cor.test(dat1$ppd_env, dat1$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1$ppd_env, dat1$bads_avr)
 
-cor.test(dat1$ppd_brain, dat1$bads_act, method = "spearman")
-#ns
-cor.test(dat1$ppd_brain, dat1$bads_avr, method = "spearman")
-#ns
+## Adjust p-values
+ps <- c(".4885", ".6442", ".2641", ".01689")
+round(p.adjust(ps, "fdr"), 3)
 
-cor.test(dat1$ppd_env, dat1$bads_act, method = "spearman")
-#ns
-cor.test(dat1$ppd_env, dat1$bads_avr, method = "spearman")
-#sig
+### Demographic Follow-up Analyses ####
+## Split by gender
+dat1_women <- dat1[which(dat1$gender=="Cis Woman"),]
+dat1_men <- dat1[which(dat1$gender=="Cis Man"),] 
+
+## Cis women
+# ppd_perm & bads_act
+cor.test(dat1_women$ppd_perm, dat1_women$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_women$ppd_perm, dat1_women$bads_act)
+# ppd_perm & bads_avr
+cor.test(dat1_women$ppd_perm, dat1_women$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_women$ppd_perm, dat1_women$bads_avr)
+# ppd_brain & bads_act
+cor.test(dat1_women$ppd_brain, dat1_women$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_women$ppd_brain, dat1_women$bads_act)
+# ppd_brain & bads_avr
+cor.test(dat1_women$ppd_brain, dat1_women$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_women$ppd_brain, dat1_women$bads_avr)
+# ppd_env & bads_act
+cor.test(dat1_women$ppd_env, dat1_women$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_women$ppd_env, dat1_women$bads_avr)
+# ppd_env & bads_avr
+cor.test(dat1_women$ppd_env, dat1_women$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_women$ppd_env, dat1_women$bads_avr)
+
+## Cis men
+# ppd_perm & bads_act
+cor.test(dat1_men$ppd_perm, dat1_men$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_men$ppd_perm, dat1_men$bads_act)
+# ppd_perm & bads_avr
+cor.test(dat1_men$ppd_perm, dat1_men$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_men$ppd_perm, dat1_men$bads_avr)
+# ppd_brain & bads_act
+cor.test(dat1_men$ppd_brain, dat1_men$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_men$ppd_brain, dat1_men$bads_act)
+# ppd_brain & bads_avr
+cor.test(dat1_men$ppd_brain, dat1_men$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_men$ppd_brain, dat1_men$bads_avr)
+# ppd_env & bads_act
+cor.test(dat1_men$ppd_env, dat1_men$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_men$ppd_env, dat1_men$bads_act)
+# ppd_env & bads_avr
+cor.test(dat1_men$ppd_env, dat1_men$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_men$ppd_env, dat1_men$bads_avr)
+
+## Split by age
+dat1_younger <- dat1[which(dat1$age_split=="Below Median"),]
+dat1_older <- dat1[which(dat1$age_split=="Above Median"),] 
+
+## Below median
+# ppd_perm & bads_act
+cor.test(dat1_younger$ppd_perm, dat1_younger$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_younger$ppd_perm, dat1_younger$bads_act)
+# ppd_perm & bads_avr
+cor.test(dat1_younger$ppd_perm, dat1_younger$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_younger$ppd_perm, dat1_younger$bads_avr)
+# ppd_brain & bads_act
+cor.test(dat1_younger$ppd_brain, dat1_younger$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_younger$ppd_brain, dat1_younger$bads_act)
+# ppd_brain & bads_avr
+cor.test(dat1_younger$ppd_brain, dat1_younger$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_younger$ppd_brain, dat1_younger$bads_avr)
+# ppd_env & bads_act
+cor.test(dat1_younger$ppd_env, dat1_younger$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_younger$ppd_env, dat1_younger$bads_act)
+# ppd_env & bads_avr
+cor.test(dat1_younger$ppd_env, dat1_younger$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_younger$ppd_env, dat1_younger$bads_avr)
+
+## Above median
+# ppd_perm & bads_act
+cor.test(dat1_older$ppd_perm, dat1_older$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_older$ppd_perm, dat1_older$bads_act)
+# ppd_perm & bads_avr
+cor.test(dat1_older$ppd_perm, dat1_older$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_older$ppd_perm, dat1_older$bads_avr)
+# ppd_brain & bads_act
+cor.test(dat1_older$ppd_brain, dat1_older$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_older$ppd_brain, dat1_older$bads_act)
+# ppd_brain & bads_avr
+cor.test(dat1_older$ppd_brain, dat1_older$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_older$ppd_brain, dat1_older$bads_avr)
+# ppd_env & bads_act
+cor.test(dat1_older$ppd_env, dat1_older$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_older$ppd_env, dat1_older$bads_avr)
+# ppd_env & bads_avr
+cor.test(dat1_older$ppd_env, dat1_older$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_older$ppd_env, dat1_older$bads_avr)
+
+## Split by income
+dat1_low_inc <- dat1[which(dat1$income_split=="Below Median"),]
+dat1_high_inc <- dat1[which(dat1$income_split=="Above Median"),] 
+
+## Below median
+# ppd_perm & bads_act
+cor.test(dat1_low_inc$ppd_perm, dat1_low_inc$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_low_inc$ppd_perm, dat1_low_inc$bads_act)
+# ppd_perm & bads_avr
+cor.test(dat1_low_inc$ppd_perm, dat1_low_inc$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_low_inc$ppd_perm, dat1_low_inc$bads_avr)
+# ppd_brain & bads_act
+cor.test(dat1_low_inc$ppd_brain, dat1_low_inc$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_low_inc$ppd_brain, dat1_low_inc$bads_act)
+# ppd_brain & bads_avr
+cor.test(dat1_low_inc$ppd_brain, dat1_low_inc$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_low_inc$ppd_brain, dat1_low_inc$bads_avr)
+# ppd_env & bads_act
+cor.test(dat1_low_inc$ppd_env, dat1_low_inc$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_low_inc$ppd_env, dat1_low_inc$bads_act)
+# ppd_env & bads_avr
+cor.test(dat1_low_inc$ppd_env, dat1_low_inc$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_low_inc$ppd_env, dat1_low_inc$bads_avr)
+
+## Above median
+# ppd_perm & bads_act
+cor.test(dat1_high_inc$ppd_perm, dat1_high_inc$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_high_inc$ppd_perm, dat1_high_inc$bads_act)
+# ppd_perm & bads_avr
+cor.test(dat1_high_inc$ppd_perm, dat1_high_inc$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_high_inc$ppd_perm, dat1_high_inc$bads_avr)
+# ppd_brain & bads_act
+cor.test(dat1_high_inc$ppd_brain, dat1_high_inc$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_high_inc$ppd_brain, dat1_high_inc$bads_act)
+# ppd_brain & bads_avr
+cor.test(dat1_high_inc$ppd_brain, dat1_high_inc$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_high_inc$ppd_brain, dat1_high_inc$bads_avr)
+# ppd_env & bads_act
+cor.test(dat1_high_inc$ppd_env, dat1_high_inc$bads_act, method = "spearman", exact = FALSE)
+spearman.ci(dat1_high_inc$ppd_env, dat1_high_inc$bads_act)
+# ppd_env & bads_avr
+cor.test(dat1_high_inc$ppd_env, dat1_high_inc$bads_avr, method = "spearman", exact = FALSE)
+spearman.ci(dat1_high_inc$ppd_env, dat1_high_inc$bads_avr)
 
 
-
-## Demographic analyses
-# Gender
-dat1_women <- dat1[which(dat1$gender=="Woman"),]
-dat1_men <- dat1[which(dat1$gender=="Man"),] 
-
-cor.test(dat1_women$ppd_perm, dat1_women$bads_act, method = "spearman")
-#sig
-cor.test(dat1_men$ppd_perm, dat1_men$bads_act, method = "spearman")
-#ns
-cor.test(dat1_women$ppd_perm, dat1_women$bads_avr, method = "spearman")
-#ns (marg)
-cor.test(dat1_men$ppd_perm, dat1_men$bads_avr, method = "spearman")
-#sig
-
-cor.test(dat1_women$ppd_brain, dat1_women$bads_act, method = "spearman")
-#ns
-cor.test(dat1_men$ppd_brain, dat1_men$bads_act, method = "spearman")
-#ns
-cor.test(dat1_women$ppd_brain, dat1_women$bads_avr, method = "spearman")
-#ns
-cor.test(dat1_men$ppd_brain, dat1_men$bads_avr, method = "spearman")
-#ns
-
-cor.test(dat1_women$ppd_env, dat1_women$bads_act, method = "spearman")
-#sig
-cor.test(dat1_men$ppd_env, dat1_men$bads_act, method = "spearman")
-#sig
-cor.test(dat1_women$ppd_env, dat1_women$bads_avr, method = "spearman")
-#ns
-cor.test(dat1_men$ppd_env, dat1_men$bads_avr, method = "spearman")
-#sig
-
-
-# Age (median split)
-dat1_younger <- dat1[which(dat1$age_split=="<=14"),]
-count(dat1_younger)
-
-dat1_older <- dat1[which(dat1$age_split==">14"),]
-count(dat1_older)
-
-cor.test(dat1_younger$ppd_perm, dat1_younger$bads_act, method = "spearman")
-#ns (marg)
-cor.test(dat1_older$ppd_perm, dat1_older$bads_act, method = "spearman")
-#sig
-cor.test(dat1_younger$ppd_perm, dat1_younger$bads_avr, method = "spearman")
-#sig
-cor.test(dat1_older$ppd_perm, dat1_older$bads_avr, method = "spearman")
-#ns (marg)
-
-cor.test(dat1_younger$ppd_brain, dat1_younger$bads_act, method = "spearman")
-#ns
-cor.test(dat1_older$ppd_brain, dat1_older$bads_act, method = "spearman")
-#ns
-cor.test(dat1_younger$ppd_brain, dat1_younger$bads_avr, method = "spearman")
-#ns
-cor.test(dat1_older$ppd_brain, dat1_older$bads_avr, method = "spearman")
-#ns
-
-cor.test(dat1_younger$ppd_env, dat1_younger$bads_act, method = "spearman")
-#ns
-cor.test(dat1_older$ppd_env, dat1_older$bads_act, method = "spearman")
-#ns
-cor.test(dat1_younger$ppd_env, dat1_younger$bads_avr, method = "spearman")
-#ns
-cor.test(dat1_older$ppd_env, dat1_older$bads_avr, method = "spearman")
-#sig
-
-# Income (median split)
-dat1_higher <- dat1[which(dat1$income_split=="Higher"),]
-dat1_higher
-count(dat1_higher)
-
-dat1_lower <- dat1[which(dat1$income_split=="Lower"),]
-count(dat1_lower)
-
-cor.test(dat1_higher$ppd_perm, dat1_higher$bads_act, method = "spearman")
-#ns
-cor.test(dat1_lower$ppd_perm, dat1_lower$bads_act, method = "spearman")
-#sig
-cor.test(dat1_higher$ppd_perm, dat1_higher$bads_avr, method = "spearman")
-#ns (marg)
-cor.test(dat1_lower$ppd_perm, dat1_lower$bads_avr, method = "spearman")
-#sig
-
-cor.test(dat1_higher$ppd_brain, dat1_higher$bads_act, method = "spearman")
-#ns
-cor.test(dat1_lower$ppd_brain, dat1_lower$bads_act, method = "spearman")
-#ns
-cor.test(dat1_higher$ppd_brain, dat1_higher$bads_avr, method = "spearman")
-#ns
-cor.test(dat1_lower$ppd_brain, dat1_lower$bads_avr, method = "spearman")
-#ns (marg)
-
-cor.test(dat1_higher$ppd_env, dat1_higher$bads_act, method = "spearman")
-#ns
-cor.test(dat1_lower$ppd_env, dat1_lower$bads_act, method = "spearman")
-#ns
-cor.test(dat1_higher$ppd_env, dat1_higher$bads_avr, method = "spearman")
-#sig
-cor.test(dat1_lower$ppd_env, dat1_lower$bads_avr, method = "spearman")
-#sig
-
-
-
-
-
-## Plots
-#df %>%
-  #ggplot() +
-  #geom_histogram(aes(yb_bads_1))
-
-
-
-#plot(dat1$bads_act, dat1$ppd_perm)
+#### Out of curiosity, check whether variable means differ by demographic
+## BADS subscales:
+dat2 <- subset(dat1, dat1$gender != "Other")
+aggregate(dat1$bads_act, list(dat1$gender), FUN = mean, na.rm = TRUE)
+wilcox.test(dat2$bads_act ~ dat2$gender)
+aggregate(dat1$bads_avr, list(dat1$gender), FUN = mean, na.rm = TRUE)
+wilcox.test(dat2$bads_avr ~ dat2$gender)
+# No BADS differences by gender
+aggregate(dat1$bads_act, list(dat1$age_split), FUN = mean, na.rm = TRUE)
+wilcox.test(dat1$bads_act ~ dat1$age_split)
+aggregate(dat1$bads_avr, list(dat1$age_split), FUN = mean, na.rm = TRUE)
+wilcox.test(dat1$bads_avr ~ dat1$age_split)
+# No BADS differences by age
+aggregate(dat1$bads_act, list(dat1$income_split), FUN = mean, na.rm = TRUE)
+wilcox.test(dat1$bads_act ~ dat1$income_split)
+aggregate(dat1$bads_avr, list(dat1$income_split), FUN = mean, na.rm = TRUE)
+wilcox.test(dat1$bads_avr ~ dat1$income_split)
+# Lower-income have higher BADS avoidance scores
+## PPD items:
+aggregate(dat1$ppd_perm, list(dat1$gender), FUN = mean, na.rm = TRUE)
+wilcox.test(dat2$ppd_perm ~ dat2$gender)
+aggregate(dat1$ppd_brain, list(dat1$gender), FUN = mean, na.rm = TRUE)
+wilcox.test(dat2$ppd_brain ~ dat2$gender)
+aggregate(dat1$ppd_env, list(dat1$gender), FUN = mean, na.rm = TRUE)
+wilcox.test(dat2$ppd_env ~ dat2$gender)
+# Cis women have higher ppd_perm scores than cis men
+aggregate(dat1$ppd_perm, list(dat1$age_split), FUN = mean, na.rm = TRUE)
+wilcox.test(dat1$ppd_perm ~ dat1$age_split)
+aggregate(dat1$ppd_brain, list(dat1$age_split), FUN = mean, na.rm = TRUE)
+wilcox.test(dat1$ppd_brain ~ dat1$age_split)
+aggregate(dat1$ppd_env, list(dat1$age_split), FUN = mean, na.rm = TRUE)
+wilcox.test(dat1$ppd_env ~ dat1$age_split)
+# No PPD differences by age
+aggregate(dat1$ppd_perm, list(dat1$income_split), FUN = mean, na.rm = TRUE)
+wilcox.test(dat1$ppd_perm ~ dat1$income_split)
+aggregate(dat1$ppd_brain, list(dat1$income_split), FUN = mean, na.rm = TRUE)
+wilcox.test(dat1$ppd_brain ~ dat1$income_split)
+aggregate(dat1$ppd_env, list(dat1$income_split), FUN = mean, na.rm = TRUE)
+wilcox.test(dat1$ppd_env ~ dat1$income_split)
+# No PPD differences by income
