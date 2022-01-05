@@ -1,10 +1,14 @@
+############################
+##  BADS-PPD Interaction  ##
+############################
+
 #### Setup ####
-# Load packages
+## Load packages
 library(tidyverse)
 library(here)
 library(RVAideMemoire)
 
-# Load data
+## Load data
 dat1 <- readRDS(here("data", "T2T Data for Pinder et al.rds"))
 
 ####  Prepare Data  ####
