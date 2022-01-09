@@ -7,6 +7,7 @@
 library(tidyverse)
 library(here)
 library(RVAideMemoire)
+library(scales)
 
 ## Load data
 dat1 <- readRDS(here("data", "T2T Data for Pinder et al.rds"))
@@ -14,32 +15,32 @@ dat1 <- readRDS(here("data", "T2T Data for Pinder et al.rds"))
 ####  Prepare Data  ####
 ## Select relevant variables
 names(dat1)
-dat1 <- subset(dat1, select = c("pb_childethnicity", "pb_childsex",
-                                "pb_childgender","pb_childage", "pb_income",
-                                "yb_permanence","yb_cause_brain", "yb_cause_env",
-                                "yb_bads_3", "yb_bads_4", "yb_bads_5",
-                                "yb_bads_7", "yb_bads_8","yb_bads_9",
-                                "yb_bads_10","yb_bads_11", "yb_bads_12",
-                                "yb_bads_13", "yb_bads_14", "yb_bads_15",
-                                "yb_bads_23", "yb_bads_24", "yb_bads_25"
-))
 
-## Rename variables
-dat1 <- dat1 %>% rename(race_eth = pb_childethnicity,
-                        sex = pb_childsex,
-                        gender = pb_childgender,
-                        age = pb_childage,
-                        income = pb_income,
-                        ppd_perm = yb_permanence,
-                        ppd_brain = yb_cause_brain,
-                        ppd_env = yb_cause_env)
+dat1 <- dat1 %>%
+  
+  # Select relevant variables
+  select(pb_childethnicity, pb_childsex, pb_childgender, pb_childage, pb_income, 
+         yb_permanence, yb_cause_brain, yb_cause_env,
+         yb_bads_3, yb_bads_4, yb_bads_5, yb_bads_7, yb_bads_8, yb_bads_9, 
+         yb_bads_10,yb_bads_11, yb_bads_12, yb_bads_13, yb_bads_14, yb_bads_15, 
+         yb_bads_23, yb_bads_24, yb_bads_25) %>%
+  
+  # Rename variables
+  rename(race_eth = pb_childethnicity,
+         sex = pb_childsex,
+         gender = pb_childgender,
+         age = pb_childage,
+         income = pb_income,
+         ppd_perm = yb_permanence,
+         ppd_brain = yb_cause_brain,
+         ppd_env = yb_cause_env)
 
 ## Inspect NAs
-missings <- sapply(dat1, function(x) sum(is.na(x)))
+sapply(dat1, function(x) sum(is.na(x)))
 # No missing demographic info
 # Look at NAs in analysis variables
 names(dat1)
-(dat1[c(6:10)])
+dat1[6:10]
 # 2 subjects NA for all 3 ppd vars - drop now (analyses impossible)
 dat1 <- subset(dat1, dat1$ppd_perm != "NA")
 dat1$ppd_perm
@@ -55,10 +56,8 @@ dat1$bads_avr <- dat1$yb_bads_8 + dat1$yb_bads_9 + dat1$yb_bads_10 +
                 dat1$yb_bads_24 + dat1$yb_bads_25
 # Cases with a missing item value get a missing subscale value
 # Remove individual BADS item variables
-dat1 <- subset(dat1, select = c("race_eth", "sex", "gender", "age", "income",
-                                "ppd_perm", "ppd_brain", "ppd_env",
-                                "bads_act", "bads_avr"
-))
+dat1 <- dat1 %>%
+  select(-matches("yb_bads_[0-9]"))
 
 ## Get demographic details
 # Write function for tables
@@ -77,16 +76,23 @@ freq_tab_with_perc <- function(x) {
 mean(dat1$age)
 sd(dat1$age)
 
+# Another way
+dat1 %>%
+  count(race_eth) %>%
+  mutate(pct = percent(n / sum(n)))
+
 ## Recode variables
 # Recode race/ethnicity
-dat1 = dat1 %>% mutate(race_eth = recode(race_eth,
-                "American Indian and/or Alaska Native" = "AI/AN",
-               "Black or African American" = "Black",
-               "More than one race" = "Other/Mult",
-               "White, non-Hispanic (includes Middle Eastern)" = "White",
-               "Asian (including Asian Desi and Pacific Islander)" = "AA/PI",
-               "Hispanic or Latino/a" = "Hisp/Lat",
-               "Other, please specify" = "Other/Mult"))
+dat1 <- dat1 %>% 
+  mutate(race_eth = recode(
+    race_eth,
+    "American Indian and/or Alaska Native" = "AI/AN",
+    "Black or African American" = "Black",
+    "More than one race" = "Other/Mult",
+    "White, non-Hispanic (includes Middle Eastern)" = "White",
+    "Asian (including Asian Desi and Pacific Islander)" = "AA/PI",
+    "Hispanic or Latino/a" = "Hisp/Lat",
+    "Other, please specify" = "Other/Mult"))
 # Recode gender variable (cross-ref w/sex)
 table(dat1$gender)
 table(dat1$sex)
@@ -100,8 +106,7 @@ dat1 <- subset(dat1, select = c("ppd_perm", "ppd_brain", "ppd_env",
                                 "bads_act", "bads_avr",
                                 "race_eth", "gender", "age", "income"))
 #Check data
-options(max.print = 10000)
-dat1
+View(dat1)
 
 ## Median split age and income
 # Function to determine whether median should be included in upper or lower
@@ -129,15 +134,21 @@ names(dat1)
 # Split age at median
 (med_in_lower <- median_in_lower(dat1$age))
 dat1$age_split <- median_split_variable(dat1$age, med_in_lower)
-dat1 <- subset(dat1, select = -c(age))
+# Check 
+count(dat1, age, age_split)
+
 # Clean up income variable
 table(dat1$income)
-dat1$income <- sapply(str_split(dat1$income,"-",),'[',1) %>%
-  str_replace_all("[^[:alnum:]]","")
+dat1$income <- dat1$income %>%
+  gsub("\\-.*$", "", .) %>% #See https://regex101.com/
+  gsub("[^0-9]", "", .) %>%
+  as.numeric()
+
 # Split income at median
 table(dat1$income)
 (med_in_lower <- median_in_lower(dat1$income))
 dat1$income_split <- median_split_variable(dat1$income, med_in_lower)
+count(dat1, income, income_split)
 dat1 <- subset(dat1, select = -c(income))
 
 ## Look at numeric variables
@@ -146,12 +157,19 @@ dat1 <- subset(dat1, select = -c(income))
 (sds <- sapply(dat1[1:5], sd, na.rm = TRUE))
 (means_and_sds <- round(data.frame(means, sds), digits = 2))
 
+# Another way
+dat1 %>%
+  pivot_longer(where(is.numeric)) %>%
+  group_by(name) %>%
+  summarize(mean = mean(value, na.rm = T),
+            sd = sd(value, na.rm = T))
+
 ## Determine which demographic vars have 2 adequately sized subgroups
 table(dat1$race_eth)
 # No - drop from analyses
 table(dat1$gender)
 # Compare cis man & cis woman only
-table(dat1$age)
+table(dat1$age_split)
 # Yes
 table(dat1$income)
 # Yes
@@ -179,7 +197,7 @@ cor.test(dat1$ppd_env, dat1$bads_avr, method = "spearman", exact = FALSE)
 spearman.ci(dat1$ppd_env, dat1$bads_avr)
 
 ## Adjust p-values
-ps <- c(".4885", ".6442", ".2641", ".01689")
+ps <- c(".4885", ".6442", ".2641", ".01689") #Try to avoid hard-coding results
 round(p.adjust(ps, "fdr"), 3)
 
 ### Demographic Follow-up Analyses ####
@@ -356,3 +374,4 @@ wilcox.test(dat1$ppd_brain ~ dat1$income_split)
 aggregate(dat1$ppd_env, list(dat1$income_split), FUN = mean, na.rm = TRUE)
 wilcox.test(dat1$ppd_env ~ dat1$income_split)
 # No PPD differences by income
+
