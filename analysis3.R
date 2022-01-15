@@ -10,32 +10,20 @@ library(RVAideMemoire)
 library(scales)
 
 ## Load data
-dat2 <- readRDS(here("data", "T2T Data for Pinder et al.rds"))
-
+dat1 <- readRDS(here("data", "T2T Data for Pinder et al.rds"))
+view(dat1)
 ####  Prepare Data  ####
 ## Select relevant variables
-names(dat2)
-dat2$yb_cdi_25
-dat2 %>%
-  mutate(cdi_total)
-dat1 %>%
-  count(race_eth) %>%
-  mutate(pct = percent(n / sum(n)))
-
-
-
-
-
-
-
+names(dat1)
 dat1 <- dat1 %>%
-  
+  mutate(cdi_mean = round(rowMeans(select(., contains("cdi")), na.rm = TRUE), 2)) %>%
+
   # Select relevant variables
   select(pb_childethnicity, pb_childsex, pb_childgender, pb_childage, pb_income, 
          yb_permanence, yb_cause_brain, yb_cause_env,
          yb_bads_3, yb_bads_4, yb_bads_5, yb_bads_7, yb_bads_8, yb_bads_9, 
          yb_bads_10,yb_bads_11, yb_bads_12, yb_bads_13, yb_bads_14, yb_bads_15, 
-         yb_bads_23, yb_bads_24, yb_bads_25) %>%
+         yb_bads_23, yb_bads_24, yb_bads_25, cdi_mean) %>%
   
   # Rename variables
   rename(race_eth = pb_childethnicity,
@@ -46,7 +34,6 @@ dat1 <- dat1 %>%
          ppd_perm = yb_permanence,
          ppd_brain = yb_cause_brain,
          ppd_env = yb_cause_env)
-
 ## Inspect NAs
 sapply(dat1, function(x) sum(is.na(x)))
 # No missing demographic info
@@ -70,103 +57,15 @@ dat1$bads_avr <- dat1$yb_bads_8 + dat1$yb_bads_9 + dat1$yb_bads_10 +
 # Remove individual BADS item variables
 dat1 <- dat1 %>%
   select(-matches("yb_bads_[0-9]"))
+head(dat1)
 
-## Get demographic details
-# Write function for tables
-freq_tab_with_perc <- function(x) {
-  tab <- as.data.frame(table(x)) %>%
-    mutate(Perc = (Freq/sum(Freq))*100) %>%
-    mutate_if(is.numeric, round, 2)
-  return(tab)
-}
-# Generate tables
-(race_tab <- freq_tab_with_perc(dat1$race_eth))
-(sex_tab <- freq_tab_with_perc(dat1$sex))
-(gender_tab <- freq_tab_with_perc(dat1$gender))
-(income_tab <- freq_tab_with_perc(dat1$income))
-(age_tab <- freq_tab_with_perc(dat1$age))
-mean(dat1$age)
-sd(dat1$age)
-
-# Another way
-dat1 %>%
-  count(race_eth) %>%
-  mutate(pct = percent(n / sum(n)))
-
-## Recode variables
-# Recode race/ethnicity
-dat1 <- dat1 %>% 
-  mutate(race_eth = recode(
-    race_eth,
-    "American Indian and/or Alaska Native" = "AI/AN",
-    "Black or African American" = "Black",
-    "More than one race" = "Other/Mult",
-    "White, non-Hispanic (includes Middle Eastern)" = "White",
-    "Asian (including Asian Desi and Pacific Islander)" = "AA/PI",
-    "Hispanic or Latino/a" = "Hisp/Lat",
-    "Other, please specify" = "Other/Mult"))
-# Recode gender variable (cross-ref w/sex)
-table(dat1$gender)
-table(dat1$sex)
-dat1 = dat1 %>% mutate(gender = case_when(
-  sex == "female" & gender == "Woman" ~ "Cis Woman",
-  sex == "male" & gender == "Man" ~ "Cis Man",
-  TRUE ~ "Other"))
-freq_tab_with_perc(dat1$gender)
-# Remove original sex variable & reorder columns
-dat1 <- subset(dat1, select = c("ppd_perm", "ppd_brain", "ppd_env",
-                                "bads_act", "bads_avr",
-                                "race_eth", "gender", "age", "income"))
 #Check data
 View(dat1)
-
-## Median split age and income
-# Function to determine whether median should be included in upper or lower
-median_in_lower <- function(x) {
-  x <- as.integer(as.character(x))
-  var_median <- median(x)
-  print(var_median)
-  even_split <- sum(table(x))/2
-  var_freq <- as.data.frame(table(x))
-  var_freq$x <- as.integer(as.character((var_freq$x)))
-  med_in_lower = var_freq[var_freq$x <= var_median,]
-  med_in_upper = var_freq[var_freq$x < var_median,]
-  return(abs(even_split - sum(med_in_lower$Freq)) < abs(even_split - sum(med_in_upper$Freq)))
-}
-# Function to split variable at median per previous
-median_split_variable <- function(x, median_in_lower) {
-  x <- as.integer(as.character(x))
-  var_median <- median(x)
-  ifelse(median_in_lower == TRUE,
-         new_var <- ifelse(x <= var_median, "Below Median", "Above Median"),
-         new_var <- ifelse(x < var_median, "Below Median", "Above Median"))
-  return(new_var)
-}
 names(dat1)
-# Split age at median
-(med_in_lower <- median_in_lower(dat1$age))
-dat1$age_split <- median_split_variable(dat1$age, med_in_lower)
-# Check 
-count(dat1, age, age_split)
-
-# Clean up income variable
-table(dat1$income)
-dat1$income <- dat1$income %>%
-  gsub("\\-.*$", "", .) %>% #See https://regex101.com/
-  gsub("[^0-9]", "", .) %>%
-  as.numeric()
-
-# Split income at median
-table(dat1$income)
-(med_in_lower <- median_in_lower(dat1$income))
-dat1$income_split <- median_split_variable(dat1$income, med_in_lower)
-count(dat1, income, income_split)
-dat1 <- subset(dat1, select = -c(income))
-
 ## Look at numeric variables
 # Get means and sds
-(means <- sapply(dat1[1:5], mean, na.rm = TRUE))
-(sds <- sapply(dat1[1:5], sd, na.rm = TRUE))
+(means <- sapply(dat1[6:11], mean, na.rm = TRUE))
+(sds <- sapply(dat1[6:11], sd, na.rm = TRUE))
 (means_and_sds <- round(data.frame(means, sds), digits = 2))
 
 # Another way
@@ -176,38 +75,57 @@ dat1 %>%
   summarize(mean = mean(value, na.rm = T),
             sd = sd(value, na.rm = T))
 
-## Determine which demographic vars have 2 adequately sized subgroups
-table(dat1$race_eth)
-# No - drop from analyses
-table(dat1$gender)
-# Compare cis man & cis woman only
-table(dat1$age_split)
-# Yes
-table(dat1$income)
-# Yes
-# Secondary analyses will compare cis man/woman, younger/older, & higher/lower income
 
-####  Main Analysis  ####
+####  Regressions  ####
 # ppd_perm & bads_act
-cor.test(dat1$ppd_perm, dat1$bads_act, method = "spearman", exact = FALSE)
-spearman.ci(dat1$ppd_perm, dat1$bads_act)
+lm1 <- lm(bads_act ~ ppd_perm, data = dat1)
+summary(lm1)
+lm2 <- lm(bads_act ~ ppd_perm + cdi_mean, data = dat1)
+summary(lm2)
+
 # ppd_perm & bads_avr
-cor.test(dat1$ppd_perm, dat1$bads_avr, method = "spearman", exact = FALSE)
-spearman.ci(dat1$ppd_perm, dat1$bads_avr)
+lm3 <- lm(bads_avr ~ ppd_perm, data = dat1)
+summary(lm3)
+lm4 <- lm(bads_avr ~ ppd_perm + cdi_mean, data = dat1)
+summary(lm4)
 
 # ppd_brain & bads_act
-(p1 <- cor.test(dat1$ppd_brain, dat1$bads_act, method = "spearman", exact = FALSE))
-spearman.ci(dat1$ppd_brain, dat1$bads_act)
-# ppd_brain & bads_avr
-(p2 <- cor.test(dat1$ppd_brain, dat1$bads_avr, method = "spearman", exact = FALSE))
-spearman.ci(dat1$ppd_brain, dat1$bads_avr)
-# ppd_env & bads_act
-(p3 <- cor.test(dat1$ppd_env, dat1$bads_act, method = "spearman", exact = FALSE))
-spearman.ci(dat1$ppd_env, dat1$bads_act)
-# ppd_env & bads_avr
-(p4 <- cor.test(dat1$ppd_env, dat1$bads_avr, method = "spearman", exact = FALSE))
-spearman.ci(dat1$ppd_env, dat1$bads_avr)
+lm5 <- lm(bads_act ~ ppd_brain, data = dat1)
+summary(lm5)
+lm6 <- lm(bads_act ~ ppd_brain + cdi_mean, data = dat1)
+summary(lm6)
 
+# ppd_brain & bads_avr
+lm7 <- lm(bads_avr ~ ppd_brain, data = dat1)
+summary(lm7)
+lm8 <- lm(bads_avr ~ ppd_brain + cdi_mean, data = dat1)
+summary(lm8)
+
+# ppd_env & bads_act
+lm9 <- lm(bads_act ~ ppd_env, data = dat1)
+summary(lm9)
+lm10 <- lm(bads_act ~ ppd_env + cdi_mean, data = dat1)
+summary(lm10)
+
+# ppd_env & bads_avr
+lm11 <- lm(bads_avr ~ ppd_env, data = dat1)
+summary(lm11)
+lm12 <- lm(bads_avr ~ ppd_env + cdi_mean, data = dat1)
+summary(lm12)
+
+# get ps
+ps_lm6 <- (summary(lm6)$coefficients[,4])
+(p_act_brain <- ps_lm6[2])
+
+ps_lm8 <- (summary(lm8)$coefficients[,4])
+(p_avr_brain <- ps_lm8[2])
+
+ps_lm10 <- (summary(lm10)$coefficients[,4])
+(p_act_env <- ps_lm10[2])
+
+ps_lm12 <- (summary(lm12)$coefficients[,4])
+(p_avr_env <- ps_lm12[2])
+    
 ## Adjust p-values
-ps <- c(p1$p.value, p2$p.value, p3$p.value, p4$p.value)
+(ps <- c(as.numeric(p_act_brain), as.numeric(p_act_env), as.numeric(p_avr_brain), as.numeric(p_avr_env)))
 round(p.adjust(ps, "fdr"), 3)
