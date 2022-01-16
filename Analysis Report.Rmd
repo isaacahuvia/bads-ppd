@@ -1,0 +1,91 @@
+---
+title: "Analysis Report"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(here)
+library(RVAideMemoire)
+library(scales)
+library(stargazer)
+library(knitr)
+library(kableExtra)
+
+## Load data
+raw <- readRDS(here("data", "T2T Data for Pinder et al.rds"))
+
+## Prepare Data
+## Select relevant variables
+df <- raw %>%
+  
+  # Create new variables
+  mutate(bads_act = yb_bads_3 + yb_bads_4 + yb_bads_5 + yb_bads_7 + yb_bads_11 + yb_bads_12 + yb_bads_23,
+         bads_avr = yb_bads_8 + yb_bads_9 + yb_bads_10 + yb_bads_13 + yb_bads_14 + yb_bads_15 + yb_bads_24 + yb_bads_25,
+         cdi_mean = rowMeans(select(., contains("cdi")), na.rm = TRUE)) %>%
+  
+  # Select and rename relevant variables
+  select(race_eth = pb_childethnicity,
+         sex = pb_childsex,
+         gender = pb_childgender,
+         age = pb_childage,
+         income = pb_income,
+         ppd_perm = yb_permanence,
+         ppd_brain = yb_cause_brain,
+         ppd_env = yb_cause_env,
+         bads_act,
+         bads_avr,
+         cdi_mean) %>%
+  
+  # Drop NA
+  drop_na(ppd_perm)
+```
+
+## Core Analysis
+
+```{r}
+# Prognostic Pessimism + BADS Activation
+perm_act_cor <- cor.test(df$ppd_perm, df$bads_act, method = "spearman", exact = FALSE)
+perm_act_cor_ci <- spearman.ci(df$ppd_perm, df$bads_act)
+
+# Prognostic Pessimism + BADS Avoidance/Rumination
+perm_avr_cor <- cor.test(df$ppd_perm, df$bads_avr, method = "spearman", exact = FALSE)
+perm_avr_cor_ci <- spearman.ci(df$ppd_perm, df$bads_avr)
+```
+
+Prognostic pessimism is correlated with the BADS activation subscale at `r round(perm_act_cor$estimate, 3)` (_p_ = `r round(perm_act_cor$p.value, 3)`; 95% CI `r round(perm_act_cor_ci$conf.int[["Inf"]], 3)`, `r round(perm_act_cor_ci$conf.int[["Sup"]], 3)`)
+
+Prognostic pessimism is correlated with the BADS avoidance/rumination subscale at `r round(perm_avr_cor$estimate, 3)` (_p_ = `r round(perm_avr_cor$p.value, 3)`; 95% CI `r round(perm_avr_cor_ci$conf.int[["Inf"]], 3)`, `r round(perm_avr_cor_ci$conf.int[["Sup"]], 3)`)
+
+## Robustness Checks
+
+#### Regressions
+
+```{r, results = "asis"}
+perm_act_lm <- lm(bads_act ~ ppd_perm, data = df)
+perm_act_lm_controlled <- lm(bads_act ~ ppd_perm + cdi_mean, data = df)
+
+perm_avr_lm <- lm(bads_avr ~ ppd_perm, data = df)
+perm_avr_lm_controlled <- lm(bads_avr ~ ppd_perm + cdi_mean, data = df)
+
+stargazer(perm_act_lm, perm_act_lm_controlled, perm_avr_lm, perm_avr_lm_controlled, type = "html")
+```
+
+#### Semi-Partial Correlations
+
+```{r}
+# Prognostic Pessimism + BADS Activation
+perm_without_cdi <- lm(ppd_perm ~ cdi_mean, data = df) %>%
+  pluck("residuals")
+
+perm_act_spcor <- cor.test(perm_without_cdi, df$bads_act, method = "spearman", exact = FALSE)
+perm_act_spcor_ci <- spearman.ci(perm_without_cdi, df$bads_act)
+
+# Prognostic Pessimism + BADS Avoidance/Rumination
+perm_avr_spcor <- cor.test(perm_without_cdi, df$bads_avr, method = "spearman", exact = FALSE)
+perm_avr_spcor_ci <- spearman.ci(perm_without_cdi, df$bads_avr)
+```
+
+Prognostic pessimism is semi-partially correlated with the BADS activation subscale (after partialling CDI out of prognostic pessimism) at `r round(perm_act_spcor$estimate, 3)` (_p_ = `r round(perm_act_spcor$p.value, 3)`; 95% CI `r round(perm_act_spcor_ci$conf.int[["Inf"]], 3)`, `r round(perm_act_spcor_ci$conf.int[["Sup"]], 3)`)
+
+Prognostic pessimism is semi-partially correlated with the BADS avoidance/rumination subscale (after partialling CDI out of prognostic pessimism) at `r round(perm_avr_spcor$estimate, 3)` (_p_ = `r round(perm_avr_spcor$p.value, 3)`; 95% CI `r round(perm_avr_spcor_ci$conf.int[["Inf"]], 3)`, `r round(perm_avr_spcor_ci$conf.int[["Sup"]], 3)`)
