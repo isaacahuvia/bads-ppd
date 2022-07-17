@@ -15,7 +15,6 @@ dat1 <- readRDS(here("data", "T2T Data for Pinder et al.rds"))
 ####  Prepare Data  ####
 ## Select relevant variables
 names(dat1)
-
 dat1 <- dat1 %>%
   
   # Select relevant variables
@@ -35,6 +34,8 @@ dat1 <- dat1 %>%
          ppd_brain = yb_cause_brain,
          ppd_env = yb_cause_env)
 
+head(dat1)
+View(dat1)
 ## Inspect NAs
 sapply(dat1, function(x) sum(is.na(x)))
 # No missing demographic info
@@ -57,8 +58,51 @@ dat1$bads_avr <- dat1$yb_bads_8 + dat1$yb_bads_9 + dat1$yb_bads_10 +
 
 # Cases with a missing item value get a missing subscale value
 # Remove individual BADS item variables
-dat1 <- dat1 %>%
-  select(-matches("yb_bads_[0-9]"))
+#dat1 <- dat1 %>%
+  #select(-matches("yb_bads_[0-9]"))
+
+
+head(dat1)
+
+
+install.packages("ltm")
+library(ltm)
+
+names(dat1)[16:40]
+dat2 <- dat1[,16:40]
+
+# All BADS:
+alpha1 <- cronbach.alpha(dat2, na.rm = T)
+
+act <- c(3, 4, 5, 7, 11, 12, 23)
+bact <- dat2[,act]
+alpha2 <- cronbach.alpha(bact, na.rm = T)
+
+avr <- c(8, 9, 10, 13, 14, 15, 24, 25)
+bavr <- dat2[,avr]
+alpha3 <- cronbach.alpha(bavr, na.rm = T)
+
+
+round(alpha1$alpha, 2)
+round(alpha2$alpha, 2)
+round(alpha3$alpha, 2)
+
+
+
+
+
+
+dat1$bads_act <- dat1$yb_bads_3 + dat1$yb_bads_4 + dat1$yb_bads_5 +
+  dat1$yb_bads_7 + dat1$yb_bads_11 + dat1$yb_bads_12 + 
+  dat1$yb_bads_23
+
+dat1$bads_avr <- dat1$yb_bads_8 + dat1$yb_bads_9 + dat1$yb_bads_10 +
+  dat1$yb_bads_13 + dat1$yb_bads_14 + dat1$yb_bads_15 + 
+  dat1$yb_bads_24 + dat1$yb_bads_25
+
+
+
+
 
 ## Get demographic details
 # Write function for tables
@@ -68,6 +112,7 @@ freq_tab_with_perc <- function(x) {
     mutate_if(is.numeric, round, 2)
   return(tab)
 }
+
 # Generate tables
 (race_tab <- freq_tab_with_perc(dat1$race_eth))
 (sex_tab <- freq_tab_with_perc(dat1$sex))

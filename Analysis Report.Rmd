@@ -89,3 +89,129 @@ perm_avr_spcor_ci <- spearman.ci(perm_without_cdi, df$bads_avr)
 Prognostic pessimism is semi-partially correlated with the BADS activation subscale (after partialling CDI out of prognostic pessimism) at `r round(perm_act_spcor$estimate, 3)` (_p_ = `r round(perm_act_spcor$p.value, 3)`; 95% CI `r round(perm_act_spcor_ci$conf.int[["Inf"]], 3)`, `r round(perm_act_spcor_ci$conf.int[["Sup"]], 3)`)
 
 Prognostic pessimism is semi-partially correlated with the BADS avoidance/rumination subscale (after partialling CDI out of prognostic pessimism) at `r round(perm_avr_spcor$estimate, 3)` (_p_ = `r round(perm_avr_spcor$p.value, 3)`; 95% CI `r round(perm_avr_spcor_ci$conf.int[["Inf"]], 3)`, `r round(perm_avr_spcor_ci$conf.int[["Sup"]], 3)`)
+
+
+#### Demographics
+
+```{r}
+# Get descriptives
+df %>%
+  count(age) %>%
+  mutate(pct = percent(n / sum(n)))
+
+df %>%
+  count(income) %>%
+  mutate(pct = percent(n / sum(n)))
+
+df <- df %>% 
+  mutate(race_eth = recode(
+    race_eth,
+    "American Indian and/or Alaska Native" = "AI/AN",
+    "Black or African American" = "Black",
+    "More than one race" = "Other/Mult",
+    "White, non-Hispanic (includes Middle Eastern)" = "White",
+    "Asian (including Asian Desi and Pacific Islander)" = "AA/PI",
+    "Hispanic or Latino/a" = "Hisp/Lat",
+    "Other, please specify" = "Other/Mult"))
+df %>%
+  count(race_eth) %>%
+  mutate(pct = percent(n / sum(n)))
+
+df = df %>% mutate(gender = case_when(
+  sex == "female" & gender == "Woman" ~ "Cis Woman",
+  sex == "male" & gender == "Man" ~ "Cis Man",
+  TRUE ~ "Other"))
+df %>%
+  count(gender) %>%
+  mutate(pct = percent(n / sum(n)))
+# Remove original sex variable & reorder columns
+dat1 <- subset(dat1, select = c("ppd_perm", "ppd_brain", "ppd_env",
+                                "bads_act", "bads_avr",
+                                "race_eth", "gender", "age", "income"))
+```
+
+#### Figure 1
+
+```{r}
+df_figure_1 <- df %>%
+  select(ppd_perm, bads_act, bads_avr) %>%
+  pivot_longer(c(bads_act, bads_avr),
+               names_to = "bads_subscale",
+               values_to = "bads_value") %>%
+  drop_na() %>%
+  group_by(ppd_perm, bads_subscale) %>%
+  summarize(mean = mean(bads_value),
+            sd = sd(bads_value),
+            n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         ci_95 = se * 1.96,
+         bads_subscale = case_when(bads_subscale == "bads_act" ~ "BADS: Activation",
+                                   bads_subscale == "bads_avr" ~ "BADS: Avoidance/Rumination"))
+
+theme_CTR <- theme_classic() +
+  theme(plot.title = element_text(size = 12),
+        plot.subtitle = element_text(size = 12),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 12),
+        strip.text = element_text(size = 12))
+```
+
+Option 1: Means and 95% Confidence Intervals
+
+```{r}
+ggplot(df_figure_1) +
+  geom_point(aes(ppd_perm, mean)) +
+  geom_errorbar(aes(ppd_perm, ymin = mean - ci_95, ymax = mean + ci_95)) +
+  scale_x_continuous(name = "Prognostic Pessimism",
+                     breaks = c(1, 5),
+                     labels = c("Not at all Permanent", "Completely Permanent")) +
+  scale_y_continuous(name = "BADS Sum Score") +
+  facet_wrap(~ bads_subscale, ncol = 1, scales = "free_y") +
+  ggtitle("BADS Subscale Scores by Prognostic Pessimism",
+          "Means and 95% Confidence Intervals") +
+  theme_CTR
+```
+
+Option 2: Means and Standard Errors
+
+```{r}
+ggplot(df_figure_1) +
+  geom_point(aes(ppd_perm, mean)) +
+  geom_errorbar(aes(ppd_perm, ymin = mean - se, ymax = mean + se)) +
+  scale_x_continuous(name = "Prognostic Pessimism",
+                     breaks = c(1, 5),
+                     labels = c("Not at all Permanent", "Completely Permanent")) +
+  scale_y_continuous(name = "BADS Sum Score") +
+  facet_wrap(~ bads_subscale, ncol = 1, scales = "free_y") +
+  ggtitle("BADS Subscale Scores by Prognostic Pessimism",
+          "Means and Standard Errors") +
+  theme_CTR
+```
+
+Option 1: Distributions with Means
+
+```{r}
+df %>%
+  select(ppd_perm, bads_act, bads_avr) %>%
+  pivot_longer(c(bads_act, bads_avr),
+               names_to = "bads_subscale",
+               values_to = "bads_value") %>%
+  mutate(bads_subscale = case_when(bads_subscale == "bads_act" ~ "BADS: Activation",
+         bads_subscale == "bads_avr" ~ "BADS: Avoidance/Rumination")) %>%
+  drop_na() %>%
+  ggplot() +
+    geom_point(aes(ppd_perm, bads_value), 
+               position = position_jitter(width = .1),
+               alpha = .2) +
+    stat_summary(aes(ppd_perm, bads_value),
+                 fun = mean,
+                 size = 1) +
+    scale_x_continuous(name = "Prognostic Pessimism",
+                       breaks = c(1, 5),
+                       labels = c("Not at all Permanent", "Completely Permanent")) +
+    scale_y_continuous(name = "BADS Sum Score") +
+    facet_wrap(~ bads_subscale, ncol = 1, scales = "free_y") +
+    ggtitle("BADS Subscale Scores by Prognostic Pessimism",
+            "Distributions and Means") +    
+    theme_CTR
+```
